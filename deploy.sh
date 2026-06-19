@@ -1,44 +1,31 @@
 #!/bin/bash
 
-# -------------------------------
 # Variables
-# -------------------------------
-JAR_NAME="framework.jar"
+FRAMEWORK_NAME="framework.jar"
 SRC_DIR="src/main/java"
 BUILD_DIR="build_jar"
+TEST_APP_LIB="../framework_test/lib" # Chemin vers le dossier lib de ton app de test
 
-# Chemin vers l'API Servlet pour pouvoir compiler
-SERVLET_API_JAR="../framework_test/lib/servlet-api.jar"
-
-# -------------------------------
-# 1. Nettoyage et création des dossiers
-# -------------------------------
-echo "🧹 Nettoyage des anciens dossiers de build..."
+echo "🧹 Nettoyage du dossier de build du framework..."
 rm -rf $BUILD_DIR
-rm -f $JAR_NAME
 mkdir -p $BUILD_DIR
 
-# -------------------------------
-# 2. Compilation des fichiers Java
-# -------------------------------
-echo "⚙️ Compilation du code source Java..."
-# Trouve tous les fichiers .java dans le dossier src/main/java
-find $SRC_DIR -name "*.java" > sources.txt
+echo "⚙️ Compilation des classes du framework..."
+# On compile en incluant le servlet-api dans le classpath pour éviter les erreurs d'import jakarta.servlet.*
+javac -cp "lib/servlet-api.jar" -d $BUILD_DIR $(find $SRC_DIR -name "*.java")
 
-# Compile les fichiers présents dans sources.txt directement vers build_jar
-javac -cp "$SERVLET_API_JAR" -d $BUILD_DIR @sources.txt
-rm sources.txt
+if [ $? -eq 0 ]; then
+    echo "📦 Création du fichier $FRAMEWORK_NAME..."
+    cd $BUILD_DIR || exit
+    jar -cvf ../$FRAMEWORK_NAME .
+    cd ..
 
-# -------------------------------
-# 3. Création du fichier .jar
-# -------------------------------
-echo "📦 Compression des fichiers .class en $JAR_NAME..."
-cd $BUILD_DIR || exit
-
-# Crée le fichier .jar à la racine du projet à partir des .class compilés
-jar -cvf ../$JAR_NAME *
-cd ..
-
-echo "--------------------------------------------------"
-echo "✅ Succès ! Votre bibliothèque est prête : ./$JAR_NAME"
-echo "--------------------------------------------------"
+    echo "🚚 Copie du nouveau JAR vers l'application de test..."
+    mkdir -p $TEST_APP_LIB
+    cp $FRAMEWORK_NAME $TEST_APP_LIB/
+    
+    echo "✅ Framework JAR généré et copié avec succès !"
+else
+    echo "❌ Erreur lors de la compilation du framework."
+    exit 1
+fi
