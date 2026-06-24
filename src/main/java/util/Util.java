@@ -31,8 +31,8 @@ public class Util {
         for (Class<?> clazz : toutesLesClasses) {
         String targetAnnotationName = annotationClass.getName();
 
-        switch (niveau) {
-            case CLASSE:
+        //switch (niveau) {
+            //case CLASSE:
                
                 for (Annotation anno : clazz.getAnnotations()) {
                     if (anno.annotationType().getName().equals(targetAnnotationName)) {
@@ -40,37 +40,93 @@ public class Util {
                         break;
                     }
                 }
-                break;
+            //     break;
                 
-            case METHODE:
-                for (Method method : clazz.getDeclaredMethods()) {
-                    boolean methodFound = false;
+            // case METHODE:
+            //     for (Method method : clazz.getDeclaredMethods()) {
+            //         boolean methodFound = false;
+            //         for (Annotation anno : method.getAnnotations()) {
+            //             if (anno.annotationType().getName().equals(targetAnnotationName)) {
+            //                 classesFiltrees.add(clazz);
+            //                 methodFound = true;
+            //                 break;
+            //             }
+            //         }
+            //         if (methodFound) break; 
+            //     }
+            //     break;
+                
+            // case ATTRIBUT:
+            //     for (Field field : clazz.getDeclaredFields()) {
+            //         boolean fieldFound = false;
+            //         for (Annotation anno : field.getAnnotations()) {
+            //             if (anno.annotationType().getName().equals(targetAnnotationName)) {
+            //                 classesFiltrees.add(clazz);
+            //                 fieldFound = true;
+            //                 break;
+            //             }
+            //         }
+            //         if (fieldFound) break;
+            //     }
+            //     break;
+        //}
+    }
+        return classesFiltrees;
+    }
+
+    public static List<Method> getMethodsWithAnnotation(Class<?> packageName, Class<?> annotationClass, NiveauScan niveau) throws Exception {
+        
+        if (!annotationClass.isAnnotation()) {
+            throw new IllegalArgumentException(annotationClass.getName() + " n'est pas une annotation valide !");
+        }
+
+         List<Method> classesFiltrees = new ArrayList<>();
+         //List<Method> toutesLesClasses = getClassesInPackage(packageName);
+        
+
+        // for (Class<?> clazz : toutesLesClasses) {
+        String targetAnnotationName = annotationClass.getName();
+
+        //switch (niveau) {
+            //case CLASSE:
+               
+                // for (Annotation anno : packageName.getAnnotations()) {
+                //     if (anno.annotationType().getName().equals(targetAnnotationName)) {
+                //         classesFiltrees.add(clazz);
+                //         break;
+                //     }
+                // }
+            //     break;
+                
+            // case METHODE:
+                for (Method method : packageName.getDeclaredMethods()) {
+                   // boolean methodFound = false;
                     for (Annotation anno : method.getAnnotations()) {
                         if (anno.annotationType().getName().equals(targetAnnotationName)) {
-                            classesFiltrees.add(clazz);
-                            methodFound = true;
-                            break;
+                            classesFiltrees.add(method);
+                            // methodFound = true;
+                            // break;
                         }
                     }
-                    if (methodFound) break; 
+                   // if (methodFound) break; 
                 }
-                break;
+            //     break;
                 
-            case ATTRIBUT:
-                for (Field field : clazz.getDeclaredFields()) {
-                    boolean fieldFound = false;
-                    for (Annotation anno : field.getAnnotations()) {
-                        if (anno.annotationType().getName().equals(targetAnnotationName)) {
-                            classesFiltrees.add(clazz);
-                            fieldFound = true;
-                            break;
-                        }
-                    }
-                    if (fieldFound) break;
-                }
-               break;
-        }
-    }
+            // case ATTRIBUT:
+            //     for (Field field : clazz.getDeclaredFields()) {
+            //         boolean fieldFound = false;
+            //         for (Annotation anno : field.getAnnotations()) {
+            //             if (anno.annotationType().getName().equals(targetAnnotationName)) {
+            //                 classesFiltrees.add(clazz);
+            //                 fieldFound = true;
+            //                 break;
+            //             }
+            //         }
+            //         if (fieldFound) break;
+            //     }
+            //     break;
+        //}
+   // }
         return classesFiltrees;
     }
 
