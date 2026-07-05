@@ -1,14 +1,16 @@
 package util;
 
-public class Mapping {
-    private String className;
-    private String methodName;
+import java.lang.reflect.Method;
 
-    public Mapping(String className, String methodName) {
-        this.className = className;
-        this.methodName = methodName;
+public class Mapping {
+    private Class<?> classType;
+    private Method method;
+
+    public Mapping(Class<?> classType, Method method) {
+        this.classType = classType;
+        this.method = method;
     }
 
-    public String getClassName() { return className; }
-    public String getMethodName() { return methodName; }
+    public Class<?> getClassType() { return classType; }
+    public Method getMethod() { return method; }
 }
