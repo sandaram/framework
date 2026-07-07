@@ -109,8 +109,17 @@ public class FrontControllerServlet extends HttpServlet {
 
             out.println("<p><b>URL demandée :</b> " + urlDemandee + "</p>");
             out.println("<p><b>Classe cible :</b> " + mapping.getClassType().getName() + "</p>");
-            out.println("<p><b>Méthode cible :</b> " + mapping.getMethod() + "</p>");
-            
+            out.println("<p><b>Méthode cible :</b> " + mapping.getMethod().getName() + "</p>");
+            try {
+                Object instance = mapping.getClassType().getDeclaredConstructor().newInstance();
+                Object resultat = mapping.getMethod().invoke(instance);
+                if (resultat != null) {
+                    out.println("<p><b>Résultat de la méthode :</b> " + resultat.toString() + "</p>");
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+                // TODO: handle exception
+            }
             
 
 
