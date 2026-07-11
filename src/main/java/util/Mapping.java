@@ -3,14 +3,14 @@ package util;
 import java.lang.reflect.Method;
 
 public class Mapping {
-    private Class<?> classType;
+    private Class<?> controller;
     private Method method;
 
-    public Mapping(Class<?> classType, Method method) {
-        this.classType = classType;
+    public Mapping(Class<?> controller, Method method) {
+        this.controller = controller;
         this.method = method;
     }
 
-    public Class<?> getClassType() { return classType; }
+    public Class<?> getController() { return controller; }
     public Method getMethod() { return method; }
 }
