@@ -16,9 +16,13 @@ import util.*;
 public class FrontControllerServlet extends HttpServlet {
 
         private Map<UrlMethod, Mapping> routes = new HashMap<>();
+        private String prefix = "";
+        private String suffix = "";
 
         @Override
         public void init() throws ServletException {
+                this.prefix = this.getInitParameter("prefix");
+                this.suffix = this.getInitParameter("suffix");
                 routes = (Map<UrlMethod, Mapping>) getServletContext().getAttribute("routes");
         }
 
@@ -29,6 +33,15 @@ public class FrontControllerServlet extends HttpServlet {
                 String urlMain = request.getRequestURL().toString();
                 String contextPath = request.getContextPath();
                 String url = request.getRequestURI().substring(contextPath.length());
+                if (url.endsWith(".jsp") || url.contains("/views/")) {
+                    RequestDispatcher dispatcher = request.getServletContext().getNamedDispatcher("jsp");
+                    if (dispatcher != null) {
+                        dispatcher.forward(request, response);
+                    } else {
+                        request.getRequestDispatcher(url).forward(request, response);
+                    }
+                    return; 
+                }
 
                 out.println("<h2>FrontController servlet</h2>");
                 out.println("<p><strong>Current URL:</strong> " + urlMain + "</p>");
@@ -38,17 +51,43 @@ public class FrontControllerServlet extends HttpServlet {
 
                 if (routes.containsKey(urlMethod)) {
                         Mapping mapping = routes.get(urlMethod);
-                        out.println("<div style='border: 1px solid black; padding: 10px;'>");
-                        out.println("<p><strong> Controller:</strong> " + mapping.getController().getSimpleName()
-                                        + "</p>");
-                        out.println("<p><strong> Method:</strong> " + mapping.getMethod().getName() + "</p>");
-                        out.println("<p><strong>URL Mapping:</strong> " + urlMethod.getUrl() + " [" + reqMethod
-                                        + "]</p>");
+                        
 
                         try {
+
                                 Object controllerInstance = mapping.getController().getDeclaredConstructor()
                                                 .newInstance();
                                 Object returnValue = mapping.getMethod().invoke(controllerInstance);
+
+                                if (returnValue instanceof ModelView) {
+                                    ModelView mv = (ModelView) returnValue;
+
+                                    HashMap<String, Object> donnees = mv.getData();
+                                    if (donnees != null) {
+                                        for (Map.Entry<String, Object> entry : donnees.entrySet()) {
+                                            request.setAttribute(entry.getKey(), entry.getValue());
+                                        }
+                                    }
+    
+                                    String jspNom = mv.getUrl(); 
+                                    
+                                   
+                                    if (this.prefix.endsWith("/") && jspNom.startsWith("/")) {
+                                        jspNom = jspNom.substring(1);
+                                    }
+                                    
+                                    String jspUrlComplete = this.prefix + jspNom + this.suffix; 
+                                   
+                                    RequestDispatcher dispatcher = request.getRequestDispatcher(jspUrlComplete);
+                                    dispatcher.forward(request, response);
+                                    return; 
+                                }
+                                out.println("<div style='border: 1px solid black; padding: 10px;'>");
+                                out.println("<p><strong> Controller:</strong> " + mapping.getController().getSimpleName()
+                                                + "</p>");
+                                out.println("<p><strong> Method:</strong> " + mapping.getMethod().getName() + "</p>");
+                                out.println("<p><strong>URL Mapping:</strong> " + urlMethod.getUrl() + " [" + reqMethod
+                                                + "]</p>");
                                 if (returnValue instanceof String) {
                                         out.println("<p><strong>Return value:</strong> " + returnValue + "</p>");
                                 }
