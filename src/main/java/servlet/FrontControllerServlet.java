@@ -1,144 +1,106 @@
 package servlet;
 
-import java.io.PrintWriter;
-import java.io.IOException;
-import java.util.List;
-import java.util.ArrayList; 
-import java.util.HashMap;
-import java.util.Map;
 import jakarta.servlet.*;
 import jakarta.servlet.http.*;
-import util.Util;
-import util.Mapping;
-import util.UrlMethod;
-import annotation.Controller;
-import annotation.UrlMapping;
-import java.lang.reflect.Method;
+import jakarta.servlet.annotation.*;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import util.*;
+
 
 public class FrontControllerServlet extends HttpServlet {
 
-    private List<Class<?>> classesScannees = new ArrayList<>();
-    private String packageConfigure = "";
-    private Map<UrlMethod, Mapping> urlMappingStructure = new HashMap<>();
-    private String erreurMapping = null;
+        private Map<UrlMethod, Mapping> routes = new HashMap<>();
 
-    @Override
-    public void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        try {
-            processRequest(request, response);
-        } catch (Exception e) {
-            afficherErreurSurNavigateur(response, e);
+        @Override
+        public void init() throws ServletException {
+                routes = (Map<UrlMethod, Mapping>) getServletContext().getAttribute("routes");
         }
-    }
 
-    @Override
-    public void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        try {
-            processRequest(request, response);
-        } catch (Exception e) {
-            afficherErreurSurNavigateur(response, e);
-        }
-    }
+        private void processRequest(HttpServletRequest request, HttpServletResponse response)
+                        throws ServletException, IOException {
+                response.setContentType("text/html");
+                PrintWriter out = response.getWriter();
+                String urlMain = request.getRequestURL().toString();
+                String contextPath = request.getContextPath();
+                String url = request.getRequestURI().substring(contextPath.length());
 
+                out.println("<h2>FrontController servlet</h2>");
+                out.println("<p><strong>Current URL:</strong> " + urlMain + "</p>");
 
-    private void afficherErreurSurNavigateur(HttpServletResponse response, Exception e) throws IOException {
-        response.setContentType("text/html;charset=UTF-8");
-        response.setStatus(HttpServletResponse.SC_NOT_FOUND); 
-        PrintWriter out = response.getWriter();
-        
-        out.println("<html><head><title>Erreur de Routage</title></head><body>");
-    
-        String messageHtml = e.getMessage().replace("\n", "<br/>");
-   
-        out.println(messageHtml);
-   
-        
-        out.println("</body></html>");
-    }
+                String reqMethod = request.getMethod();
+                UrlMethod urlMethod = new UrlMethod(url, reqMethod);
 
-    @Override
-    public void init() throws ServletException {
-        try {
-            packageConfigure = this.getInitParameter("packageToScan");
-            if (packageConfigure != null && !packageConfigure.trim().isEmpty()) {
-                classesScannees = Util.getClassesWithAnnotation(packageConfigure, Controller.class, Util.NiveauScan.CLASSE);
-                
-               
-                for (Class<?> clazz : classesScannees) {
-                    for (Method method : Util.getMethodsWithAnnotation(clazz, UrlMapping.class, Util.NiveauScan.METHODE)) {
-                        
-                        
-                        UrlMapping annotation = method.getAnnotation(UrlMapping.class);
-                        String urlAssociee = annotation.url();
-                        String verbeHttp = annotation.method();
-                        UrlMethod urlMethod=new UrlMethod(urlAssociee, verbeHttp);
-                        if (urlMappingStructure.containsKey(urlMethod)) {
-                            erreurMapping = "Erreur : La route [" + verbeHttp + " " + urlAssociee + "] est déjà associée à une méthode !";
-                            return;
-                            //throw new Exception(erreurMapping);
+                if (routes.containsKey(urlMethod)) {
+                        Mapping mapping = routes.get(urlMethod);
+                        out.println("<div style='border: 1px solid black; padding: 10px;'>");
+                        out.println("<p><strong> Controller:</strong> " + mapping.getController().getSimpleName()
+                                        + "</p>");
+                        out.println("<p><strong> Method:</strong> " + mapping.getMethod().getName() + "</p>");
+                        out.println("<p><strong>URL Mapping:</strong> " + urlMethod.getUrl() + " [" + reqMethod
+                                        + "]</p>");
+
+                        try {
+                                Object controllerInstance = mapping.getController().getDeclaredConstructor()
+                                                .newInstance();
+                                Object returnValue = mapping.getMethod().invoke(controllerInstance);
+                                if (returnValue instanceof String) {
+                                        out.println("<p><strong>Return value:</strong> " + returnValue + "</p>");
+                                }
+                        } catch (Exception e) {
+                                out.println("<p style='color: red;'><strong>Error executing method:</strong> "
+                                                + e.getMessage() + "</p>");
+                                e.printStackTrace(out);
                         }
-                        Mapping mappingInfo = new Mapping(clazz, method);
-                        
-                     
-                        urlMappingStructure.put(urlMethod, mappingInfo);
-                    }
+                        out.println("</div>");
+                } else {
+
+                        out.println("<p style='color: red;'><strong>No matching route found for:</strong> " + url + " ["
+                                        + reqMethod + "]</p>");
+                        out.println("<p><strong>Available routes and invokes:</strong><br/>");
+
+                        for (UrlMethod key : routes.keySet()) {
+
+                                try {
+                                        Mapping map = routes.get(key);
+                                        Object controllerInstance = map.getController().getDeclaredConstructor()
+                                                        .newInstance();
+                                        Object returnValue = map.getMethod().invoke(controllerInstance);
+
+                                        out.println(
+                                                        "- " + key.getUrl() + " [" + key.getMethod() + "] -> " +
+                                                                        map.getController().getSimpleName() +
+                                                                        "." +
+                                                                        map.getMethod().getName() + " -> " + returnValue
+                                                                        + "<br/>");
+
+                                } catch (Exception e) {
+                                        out.println("<p style='color: red;'><strong>Error executing method:</strong> "
+                                                        + e.getMessage() + "</p>");
+                                        e.printStackTrace(out);
+                                }
+
+                        }
+
+                        out.println("</p>");
                 }
-            }
-        } catch (Exception e) {
-            throw new ServletException("Erreur lors de l'initialisation du FrontControllerServlet", e);
         }
-    }
 
-    private void processRequest(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException, Exception {
-        response.setContentType("text/html;charset=UTF-8");
-        PrintWriter out = response.getWriter();
-        if (erreurMapping != null) {
-            throw new Exception(erreurMapping);
+        @Override
+        protected void doGet(HttpServletRequest request, HttpServletResponse response)
+                        throws ServletException, IOException {
+                processRequest(request, response);
         }
-        
-        String contextPath = request.getContextPath();
-        String requestURI = request.getRequestURI();
-        String urlDemandee = requestURI.substring(contextPath.length());
 
-        out.println("<html><body>");
-        String verbeHttpDeLaRequete = request.getMethod();
-        UrlMethod urlMethod = new UrlMethod(urlDemandee, verbeHttpDeLaRequete);
-
-        if (urlMappingStructure.containsKey(urlMethod)) {
-            Mapping mapping = urlMappingStructure.get(urlMethod);
-
-            out.println("<p><b>URL demandée :</b> " + urlDemandee + "</p>");
-            out.println("<p><b>Classe cible :</b> " + mapping.getClassType().getName() + "</p>");
-            out.println("<p><b>Méthode cible :</b> " + mapping.getMethod().getName() + "</p>");
-            try {
-                Object instance = mapping.getClassType().getDeclaredConstructor().newInstance();
-                Object resultat = mapping.getMethod().invoke(instance);
-                if (resultat != null) {
-                    out.println("<p><b>Résultat de la méthode :</b> " + resultat.toString() + "</p>");
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
-                // TODO: handle exception
-            }
-            
-
-
-        } else {
-           
-            StringBuilder errorMsg = new StringBuilder();
-            errorMsg.append("Aucune méthode ne correspond à l'URL : '").append(urlDemandee).append("'.\n");
-            errorMsg.append("Listes des URLs associées disponibles :\n");
-
-            for (Map.Entry<UrlMethod, Mapping> entry : urlMappingStructure.entrySet()) {
-                errorMsg.append("- URL: ").append(entry.getKey().getUrl())
-                        .append(" -> Classe: ").append(entry.getValue().getClassType().getName())
-                        .append(", Méthode: ").append(entry.getValue().getMethod().getName()).append("\n");
-            }
-            
-           
-            throw new Exception(errorMsg.toString());
+        @Override
+        protected void doPost(HttpServletRequest request, HttpServletResponse response)
+                        throws ServletException, IOException {
+                processRequest(request, response);
         }
-        
-        out.println("</body></html>");
-    }   
+
 }
