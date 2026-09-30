@@ -7,7 +7,7 @@ import java.io.PrintWriter;
 import java.util.HashMap;
 import java.util.Map;
 
-
+import annotation.ApiRest;
 import util.*;
 
 public class FrontControllerServlet extends HttpServlet {
@@ -49,11 +49,14 @@ public class FrontControllerServlet extends HttpServlet {
 
         UrlMethod urlMethod = new UrlMethod(url, request.getMethod());
 
-        // 🚀 1. Traitement API REST si l'annotation @ApiRest est présente sur la classe
+       
         if (routes.containsKey(urlMethod)) {
             Mapping mapping = routes.get(urlMethod);
 
-            
+            if (mapping.getController().isAnnotationPresent(ApiRest.class)) {
+                handleApi(mapping, response);
+                return;
+            }
 
            
             response.setContentType("text/html;charset=UTF-8");
@@ -123,7 +126,28 @@ public class FrontControllerServlet extends HttpServlet {
                 out.println("</p>");
         }
 }
-    
+    private void handleApi(Mapping mapping, HttpServletResponse response) throws IOException {
+        response.setContentType("application/json");
+        response.setCharacterEncoding("UTF-8");
+        try {
+            Object controllerInstance = mapping.getController().getDeclaredConstructor().newInstance();
+            
+            // Injection Spring
+            SpringContextTenant.autowire(controllerInstance);
+
+            Object returnValue = mapping.getMethod().invoke(controllerInstance);
+
+            String json = (returnValue instanceof String)
+                    ? (String) returnValue
+                    : JsonUtil.toJson(returnValue);
+            response.getWriter().print(json);
+        } catch (Exception e) {
+            Throwable cause = (e.getCause() != null) ? e.getCause() : e;
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            response.getWriter().print("{\"status\":\"error\",\"message\":"
+                    + JsonUtil.toJson(String.valueOf(cause.getMessage())) + "}");
+        }
+    }
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
