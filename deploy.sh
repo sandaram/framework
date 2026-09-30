@@ -1,31 +1,25 @@
 #!/bin/bash
 
 # Variables
-FRAMEWORK_NAME="framework.jar"
-SRC_DIR="src/main/java"
-BUILD_DIR="build_jar"
+FRAMEWORK_JAR="target/framework-1.0-SNAPSHOT.jar"
+DEST_JAR_NAME="framework.jar"
 TEST_APP_LIB="../framework_test/lib" # Chemin vers le dossier lib de ton app de test
 
-echo "🧹 Nettoyage du dossier de build du framework..."
-rm -rf $BUILD_DIR
-mkdir -p $BUILD_DIR
-
-echo "⚙️ Compilation des classes du framework..."
-# On compile en incluant le servlet-api dans le classpath pour éviter les erreurs d'import jakarta.servlet.*
-javac -cp "lib/servlet-api.jar" -d $BUILD_DIR $(find $SRC_DIR -name "*.java")
+echo "🧹 ⚙️ Nettoyage, téléchargement des dépendances et compilation via Maven..."
+mvn clean package
 
 if [ $? -eq 0 ]; then
-    echo "📦 Création du fichier $FRAMEWORK_NAME..."
-    cd $BUILD_DIR || exit
-    jar -cvf ../$FRAMEWORK_NAME .
-    cd ..
-
-    echo "🚚 Copie du nouveau JAR vers l'application de test..."
+    echo "🚚 Copie du nouveau JAR Maven vers l'application de test..."
     mkdir -p $TEST_APP_LIB
-    cp $FRAMEWORK_NAME $TEST_APP_LIB/
     
-    echo "✅ Framework JAR généré et copié avec succès !"
+    # On copie le jar généré par Maven dans la cible en le renommant "framework.jar"
+    cp $FRAMEWORK_JAR $TEST_APP_LIB/$DEST_JAR_NAME
+    
+    # On garde aussi une copie à la racine si besoin
+    cp $FRAMEWORK_JAR ./$DEST_JAR_NAME
+    
+    echo "✅ Framework JAR généré par Maven et copié avec succès !"
 else
-    echo "❌ Erreur lors de la compilation du framework."
+    echo "❌ Erreur lors de la compilation Maven du framework."
     exit 1
 fi
