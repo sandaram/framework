@@ -1,44 +1,25 @@
 #!/bin/bash
 
-# -------------------------------
 # Variables
-# -------------------------------
-JAR_NAME="framework.jar"
-SRC_DIR="src/main/java"
-BUILD_DIR="build_jar"
+FRAMEWORK_JAR="target/framework-1.0-SNAPSHOT.jar"
+DEST_JAR_NAME="framework.jar"
+TEST_APP_LIB="../framework_test/lib" # Chemin vers le dossier lib de ton app de test
 
-# Chemin vers l'API Servlet pour pouvoir compiler
-SERVLET_API_JAR="../framework_test/lib/servlet-api.jar"
+echo "🧹 ⚙️ Nettoyage, téléchargement des dépendances et compilation via Maven..."
+mvn clean package
 
-# -------------------------------
-# 1. Nettoyage et création des dossiers
-# -------------------------------
-echo "🧹 Nettoyage des anciens dossiers de build..."
-rm -rf $BUILD_DIR
-rm -f $JAR_NAME
-mkdir -p $BUILD_DIR
-
-# -------------------------------
-# 2. Compilation des fichiers Java
-# -------------------------------
-echo "⚙️ Compilation du code source Java..."
-# Trouve tous les fichiers .java dans le dossier src/main/java
-find $SRC_DIR -name "*.java" > sources.txt
-
-# Compile les fichiers présents dans sources.txt directement vers build_jar
-javac -cp "$SERVLET_API_JAR" -d $BUILD_DIR @sources.txt
-rm sources.txt
-
-# -------------------------------
-# 3. Création du fichier .jar
-# -------------------------------
-echo "📦 Compression des fichiers .class en $JAR_NAME..."
-cd $BUILD_DIR || exit
-
-# Crée le fichier .jar à la racine du projet à partir des .class compilés
-jar -cvf ../$JAR_NAME *
-cd ..
-
-echo "--------------------------------------------------"
-echo "✅ Succès ! Votre bibliothèque est prête : ./$JAR_NAME"
-echo "--------------------------------------------------"
+if [ $? -eq 0 ]; then
+    echo "🚚 Copie du nouveau JAR Maven vers l'application de test..."
+    mkdir -p $TEST_APP_LIB
+    
+    # On copie le jar généré par Maven dans la cible en le renommant "framework.jar"
+    cp $FRAMEWORK_JAR $TEST_APP_LIB/$DEST_JAR_NAME
+    
+    # On garde aussi une copie à la racine si besoin
+    cp $FRAMEWORK_JAR ./$DEST_JAR_NAME
+    
+    echo "✅ Framework JAR généré par Maven et copié avec succès !"
+else
+    echo "❌ Erreur lors de la compilation Maven du framework."
+    exit 1
+fi
