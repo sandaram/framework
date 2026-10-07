@@ -52,7 +52,7 @@ public class FrontControllerServlet extends HttpServlet {
             Mapping mapping = routes.get(urlMethod);
 
             if (mapping.getMethod().isAnnotationPresent(ApiRest.class)) {
-                handleApi(mapping, request, response);
+                JsonUtil.handleApi(mapping, request, response);
                 return;
             }
 
@@ -67,7 +67,7 @@ public class FrontControllerServlet extends HttpServlet {
             SpringContextTenant.autowire(controllerInstance);
 
                 Method method = mapping.getMethod();
-                Object[] args = resolveMethodArguments(method, request);
+                Object[] args = Binding.resolveMethodArguments(method, request);
 
                 Object returnValue = method.invoke(controllerInstance, args);
 
@@ -125,67 +125,9 @@ public class FrontControllerServlet extends HttpServlet {
         }
     }
 
-    private void handleApi(Mapping mapping, HttpServletRequest request, HttpServletResponse response) throws IOException {
-        response.setContentType("application/json");
-        response.setCharacterEncoding("UTF-8");
-        try {
-            
-            Object controllerInstance = mapping.getController().getDeclaredConstructor().newInstance();
-            SpringContextTenant.autowire(controllerInstance);
-            
-            Method method = mapping.getMethod();
-            Object[] args = resolveMethodArguments(method, request);
-
-            Object returnValue = method.invoke(controllerInstance, args);
-
-            String json = (returnValue instanceof String)
-                    ? (String) returnValue
-                    : JsonUtil.toJson(returnValue);
-            response.getWriter().print(json);
-        } catch (Exception e) {
-            Throwable cause = (e.getCause() != null) ? e.getCause() : e;
-            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-            response.getWriter().print("{\"status\":\"error\",\"message\":"
-                    + JsonUtil.toJson(String.valueOf(cause.getMessage())) + "}");
-        }
-    }
-
-   
-    private Object[] resolveMethodArguments(Method method, HttpServletRequest request) {
-        Parameter[] parameters = method.getParameters();
-        Object[] args = new Object[parameters.length];
-
-        for (int i = 0; i < parameters.length; i++) {
-            Parameter param = parameters[i];
-            String paramName = param.getName();
-            
-            String requestValue = request.getParameter(paramName);
-
-            if (requestValue != null && !requestValue.trim().isEmpty()) {
-                args[i] = convertType(requestValue, param.getType());
-            } else {
-                args[i] = null;
-            }
-        }
-        return args;
-    }
-
     
-    private Object convertType(String value, Class<?> targetType) {
-        if (targetType == String.class) {
-            return value;
-        } else if (targetType == Integer.class || targetType == int.class) {
-            return Integer.parseInt(value);
-        } else if (targetType == Double.class || targetType == double.class) {
-            return Double.parseDouble(value);
-        } else if (targetType == Boolean.class || targetType == boolean.class) {
-            return Boolean.parseBoolean(value);
-        } else if (targetType == Long.class || targetType == long.class) {
-            return Long.parseLong(value);
-        }
-        return value;
-    }
-
+   
+    
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
