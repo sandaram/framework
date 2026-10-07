@@ -4,6 +4,8 @@ import jakarta.servlet.*;
 import jakarta.servlet.http.*;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.lang.reflect.Method;
+import java.lang.reflect.Parameter;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -18,12 +20,10 @@ public class FrontControllerServlet extends HttpServlet {
 
     @Override
     public void init() throws ServletException {
-       
         this.prefix = this.getInitParameter("prefix");
         this.suffix = this.getInitParameter("suffix");
         if (this.prefix == null) this.prefix = "";
         if (this.suffix == null) this.suffix = "";
-
 
         Object routesAttr = getServletContext().getAttribute("routes");
         if (routesAttr != null) {
@@ -36,7 +36,6 @@ public class FrontControllerServlet extends HttpServlet {
         String contextPath = request.getContextPath();
         String url = request.getRequestURI().substring(contextPath.length());
 
-       
         if (url.endsWith(".jsp") || url.contains("/views/")) {
             RequestDispatcher dispatcher = request.getServletContext().getNamedDispatcher("jsp");
             if (dispatcher != null) {
@@ -49,26 +48,28 @@ public class FrontControllerServlet extends HttpServlet {
 
         UrlMethod urlMethod = new UrlMethod(url, request.getMethod());
 
-       
         if (routes.containsKey(urlMethod)) {
             Mapping mapping = routes.get(urlMethod);
 
-            if (mapping.getController().isAnnotationPresent(ApiRest.class)) {
-                handleApi(mapping, response);
+            if (mapping.getMethod().isAnnotationPresent(ApiRest.class)) {
+                JsonUtil.handleApi(mapping, request, response);
                 return;
             }
 
-           
             response.setContentType("text/html;charset=UTF-8");
             PrintWriter out = response.getWriter();
 
             try {
-                Object controllerInstance = mapping.getController().getDeclaredConstructor().newInstance();
                 
-             
-                SpringContextTenant.autowire(controllerInstance);
+              
+                Object controllerInstance = mapping.getController().getDeclaredConstructor().newInstance();
+    
+            SpringContextTenant.autowire(controllerInstance);
 
-                Object returnValue = mapping.getMethod().invoke(controllerInstance);
+                Method method = mapping.getMethod();
+                Object[] args = Binding.resolveMethodArguments(method, request);
+
+                Object returnValue = method.invoke(controllerInstance, args);
 
                 if (returnValue instanceof ModelView) {
                     ModelView mv = (ModelView) returnValue;
@@ -91,7 +92,6 @@ public class FrontControllerServlet extends HttpServlet {
                     return;
                 }
 
-
                 out.println("<h2>FrontController servlet</h2>");
                 out.println("<p><strong>Current URL:</strong> " + request.getRequestURL() + "</p>");
                 out.println("<div style='border: 1px solid black; padding: 10px;'>");
@@ -106,49 +106,28 @@ public class FrontControllerServlet extends HttpServlet {
                 cause.printStackTrace(out);
             }
         } else {
-               
-                response.setContentType("text/html;charset=UTF-8");
-                PrintWriter out = response.getWriter();
+            response.setContentType("text/html;charset=UTF-8");
+            PrintWriter out = response.getWriter();
 
-                out.println("<h2>FrontController servlet</h2>");
-                out.println("<p><strong>Current URL:</strong> " + request.getRequestURL() + "</p>");
-                out.println("<p style='color: red;'><strong>No matching route found for:</strong> " + url + " [" + request.getMethod() + "]</p>");
-                out.println("<p><strong>Available routes:</strong><br/>");
+            out.println("<h2>FrontController servlet</h2>");
+            out.println("<p><strong>Current URL:</strong> " + request.getRequestURL() + "</p>");
+            out.println("<p style='color: red;'><strong>No matching route found for:</strong> " + url + " [" + request.getMethod() + "]</p>");
+            out.println("<p><strong>Available routes:</strong><br/>");
 
-                for (Map.Entry<UrlMethod, Mapping> entry : routes.entrySet()) {
-                        UrlMethod key = entry.getKey();
-                        Mapping map = entry.getValue();
+            for (Map.Entry<UrlMethod, Mapping> entry : routes.entrySet()) {
+                UrlMethod key = entry.getKey();
+                Mapping map = entry.getValue();
 
-                        
-                        out.println("- " + key.getUrl() + " [" + key.getMethod() + "] -> " +
-                                map.getController().getSimpleName() + "." + map.getMethod().getName() + "<br/>");
-                }
-                out.println("</p>");
-        }
-}
-    private void handleApi(Mapping mapping, HttpServletResponse response) throws IOException {
-        response.setContentType("application/json");
-        response.setCharacterEncoding("UTF-8");
-        try {
-            Object controllerInstance = mapping.getController().getDeclaredConstructor().newInstance();
-            
-            // Injection Spring
-            SpringContextTenant.autowire(controllerInstance);
-
-            Object returnValue = mapping.getMethod().invoke(controllerInstance);
-
-            String json = (returnValue instanceof String)
-                    ? (String) returnValue
-                    : JsonUtil.toJson(returnValue);
-            response.getWriter().print(json);
-        } catch (Exception e) {
-            Throwable cause = (e.getCause() != null) ? e.getCause() : e;
-            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-            response.getWriter().print("{\"status\":\"error\",\"message\":"
-                    + JsonUtil.toJson(String.valueOf(cause.getMessage())) + "}");
+                out.println("- " + key.getUrl() + " [" + key.getMethod() + "] -> " +
+                        map.getController().getSimpleName() + "." + map.getMethod().getName() + "<br/>");
+            }
+            out.println("</p>");
         }
     }
 
+    
+   
+    
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
