@@ -1,5 +1,5 @@
 package servlet;
-
+import jakarta.servlet.annotation.MultipartConfig;
 import jakarta.servlet.*;
 import jakarta.servlet.http.*;
 import java.io.IOException;
@@ -12,6 +12,7 @@ import java.util.Map;
 import annotation.ApiRest;
 import util.*;
 
+@MultipartConfig
 public class FrontControllerServlet extends HttpServlet {
 
     private Map<UrlMethod, Mapping> routes = new HashMap<>();
@@ -61,15 +62,21 @@ public class FrontControllerServlet extends HttpServlet {
 
             try {
                 
-              
+              //singleton sprint 11 1 instance
                 Object controllerInstance = mapping.getController().getDeclaredConstructor().newInstance();
     
-            SpringContextTenant.autowire(controllerInstance);
+                SpringContextTenant.autowire(controllerInstance);
 
                 Method method = mapping.getMethod();
                 Object[] args = Binding.resolveMethodArguments(method, request);
 
                 Object returnValue = method.invoke(controllerInstance, args);
+
+                for (Object arg : args) {
+                    if (arg instanceof MaSession) {
+                        ((MaSession) arg).flushTo(request.getSession(false));
+                    }
+                }
 
                 if (returnValue instanceof ModelView) {
                     ModelView mv = (ModelView) returnValue;

@@ -1,3 +1,4 @@
 git add .
 git commit -m "ajouter method get ou post"
+git push origin Sprint7-bis
 git checkout -b Sprint3-bis
