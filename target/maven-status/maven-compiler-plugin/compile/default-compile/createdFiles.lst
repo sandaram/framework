@@ -3,6 +3,7 @@ util/Utils.class
 util/UrlMethod.class
 listener/FrameworkContextListener.class
 util/Mapping.class
+annotation/Auth.class
 util/SpringContextTenant.class
 annotation/ApiRest.class
 util/ModelView.class

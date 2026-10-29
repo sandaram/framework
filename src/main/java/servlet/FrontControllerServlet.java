@@ -10,6 +10,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import annotation.ApiRest;
+import annotation.Auth;
 import util.*;
 
 @MultipartConfig
@@ -25,6 +26,7 @@ public class FrontControllerServlet extends HttpServlet {
         this.suffix = this.getInitParameter("suffix");
         if (this.prefix == null) this.prefix = "";
         if (this.suffix == null) this.suffix = "";
+       // String authSessionKey = getInitParameter("authSessionKey");
 
         Object routesAttr = getServletContext().getAttribute("routes");
         if (routesAttr != null) {
@@ -68,6 +70,32 @@ public class FrontControllerServlet extends HttpServlet {
                 SpringContextTenant.autowire(controllerInstance);
 
                 Method method = mapping.getMethod();
+
+                // 2. VÉRIFICATION DE L'AUTHENTIFICATION (Sprint 10)
+if (method.isAnnotationPresent(Auth.class)) {
+    
+    // Récupérer la session (sans en créer une nouvelle si elle n'existe pas)
+    HttpSession session = request.getSession(false);
+    
+    // Récupérer la clé de session configurée dans le web.xml (ex: "utilisateurConnecte")
+    String authSessionKey = getInitParameter("authSessionKey");
+    if (authSessionKey == null || authSessionKey.isEmpty()) {
+        authSessionKey = "utilisateurConnecte"; // Clé par défaut de secours
+    }
+
+    // Vérifier si l'attribut existe et n'est pas null dans la session
+    boolean isConnected = false;
+    if (session != null && session.getAttribute(authSessionKey) != null) {
+        isConnected = true;
+    }
+
+    // Si l'utilisateur n'est pas connecté, on bloque l'accès
+    if (!isConnected) {
+        // Tu peux choisir d'envoyer une erreur, une exception ou rediriger vers le login
+        response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Accès refusé : Vous devez vous connecter.");
+        return; // Stoppe l'exécution de la requête ici !
+    }
+}
                 Object[] args = Binding.resolveMethodArguments(method, request);
 
                 Object returnValue = method.invoke(controllerInstance, args);
