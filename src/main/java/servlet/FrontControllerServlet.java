@@ -73,27 +73,45 @@ public class FrontControllerServlet extends HttpServlet {
 
                 // 2. VÉRIFICATION DE L'AUTHENTIFICATION (Sprint 10)
 if (method.isAnnotationPresent(Auth.class)) {
-    
-    // Récupérer la session (sans en créer une nouvelle si elle n'existe pas)
     HttpSession session = request.getSession(false);
     
-    // Récupérer la clé de session configurée dans le web.xml (ex: "utilisateurConnecte")
+    // 1. Vérification de l'authentification de base (Sprint 10)
     String authSessionKey = getInitParameter("authSessionKey");
-    if (authSessionKey == null || authSessionKey.isEmpty()) {
-        authSessionKey = "utilisateurConnecte"; // Clé par défaut de secours
+    if (authSessionKey == null) authSessionKey = "utilisateurConnecte";
+    
+    if (session == null || session.getAttribute(authSessionKey) == null) {
+        response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Accès refusé : Non connecté.");
+        return;
     }
 
-    // Vérifier si l'attribut existe et n'est pas null dans la session
-    boolean isConnected = false;
-    if (session != null && session.getAttribute(authSessionKey) != null) {
-        isConnected = true;
-    }
+    // 2. Vérification des rôles (Sprint 10 bis)
+    Auth authAnnotation = method.getAnnotation(Auth.class);
+    String[] requiredRoles = authAnnotation.roles();
 
-    // Si l'utilisateur n'est pas connecté, on bloque l'accès
-    if (!isConnected) {
-        // Tu peux choisir d'envoyer une erreur, une exception ou rediriger vers le login
-        response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Accès refusé : Vous devez vous connecter.");
-        return; // Stoppe l'exécution de la requête ici !
+    // Si l'annotation spécifie des rôles requis
+    if (requiredRoles.length > 0) {
+        String authRoleKey = getInitParameter("authRoleKey");
+        if (authRoleKey == null) authRoleKey = "roleUtilisateur";
+        
+        // Récupérer le rôle de l'utilisateur stocké dans sa session
+        String userRole = (String) session.getAttribute(authRoleKey);
+        
+        // Vérifier si le rôle de l'user fait partie des rôles autorisés
+        boolean hasRole = false;
+        if (userRole != null) {
+            for (String role : requiredRoles) {
+                if (role.equals(userRole)) {
+                    hasRole = true;
+                    break;
+                }
+            }
+        }
+
+        // Si l'utilisateur n'a pas le bon rôle, on bloque (Erreur 403 : Interdit)
+        if (!hasRole) {
+            response.sendError(HttpServletResponse.SC_FORBIDDEN, "Accès refusé : Rôle insuffisant.");
+            return;
+        }
     }
 }
                 Object[] args = Binding.resolveMethodArguments(method, request);
